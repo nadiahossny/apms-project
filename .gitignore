@@ -1,0 +1,20 @@
+# Python Virtual Environments
+venv/
+ai_service/venv/
+.venv/
+env/
+
+# Node.js
+node_modules/
+dist/
+.env
+
+# Flutter
+.dart_tool/
+.packages
+build/
+*.worker.js
+
+# OS files
+.DS_Store
+Thumbs.db

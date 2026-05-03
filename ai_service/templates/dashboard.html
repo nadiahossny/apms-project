@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy AI Command Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .header { background: linear-gradient(135deg, #1e3a5f, #0d9488); padding: 20px; text-align: center; }
+        .nav { display: flex; justify-content: center; gap: 10px; padding: 15px; background: #1e293b; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #334155; }
+        .nav button { background: #334155; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .nav button.active { background: #0d9488; }
+        .container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .card h3 { color: #0d9488; margin-bottom: 15px; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-box { background: #1e293b; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #334155; }
+        .stat-box .value { font-size: 28px; font-weight: bold; color: #0d9488; }
+        .stat-box .label { opacity: 0.7; font-size: 13px; margin-top: 5px; }
+        
+        .ai-badge {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            margin-left: 10px;
+            vertical-align: middle;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; text-transform: uppercase; font-size: 11px; }
+        tr:hover { background: #334155; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-red { background: #ef4444; color: white; }
+        
+        .promo-item { background: #0f172a; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 5px solid #ef4444; position: relative; }
+        .promo-tag { position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .new-price { color: #10b981; font-weight: bold; font-size: 18px; }
+        .old-price { text-decoration: line-through; color: #94a3b8; font-size: 12px; margin-right: 10px; }
+        
+        .reorder-card { background: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155; border-left: 4px solid #f59e0b; margin-bottom: 10px; }
+        .forecast-box { background: #0f172a; padding: 15px; border-radius: 10px; border-left: 4px solid #0ea5e9; margin-bottom: 15px; }
+        .forecast-val { font-size: 24px; font-weight: bold; color: #0ea5e9; }
+        
+        button.action { background: #0d9488; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-bottom: 15px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI Pharmacy Command Center</h1>
+        <p>Real-Time Inventory & Sales Control Center</p>
+    </div>
+    
+    <nav class="nav">
+        <button class="active" onclick="nav('overview')">Overview</button>
+        <button onclick="nav('deadstock')">Dead Stock</button>
+        <button onclick="nav('expiry')">Clearance Engine</button>
+        <button onclick="nav('ai')">AI Insights</button>
+        <button onclick="nav('audit')">AI Integrity Audit</button>
+    </nav>
+    
+    <div class="container">
+        <section id="overview" class="section active">
+            <div class="stat-grid">
+                <div class="stat-box"><div class="value">2,955</div><div class="label">Total SKUs</div></div>
+                <div class="stat-box"><div class="value">8,261,068</div><div class="label">Total Revenue (EGP)</div></div>
+                <div class="stat-box">
+                    <div class="value" id="ov-lost" style="color:#ef4444">0</div>
+                    <div class="label">Total Lost Value (Expired)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="ov-red" style="color:#ef4444">-</div>
+                    <div class="label" style="line-height:1.2">
+                        Expiry Risk Items <span class="ai-badge">AI: Advanced Neural Network (MLP)</span><br>
+                        <span id="ov-expired" style="font-size:11px; opacity:0.8; color:#ef4444">0 Expired</span> | 
+                        <span id="ov-soon" style="font-size:11px; opacity:0.8; color:#f59e0b">0 Expiring Soon</span>
+                    </div>
+                </div>
+            </div>
+            <div class="grid">
+                <div class="card"><h3>Monthly Demand Trend <span class="ai-badge">AI: Demand Insights</span></h3><div class="chart-container" style="height:250px;"><canvas id="demandChart"></canvas></div></div>
+                <div class="card"><h3>Category Health Matrix</h3><div class="chart-container" style="height:250px;"><canvas id="catChart"></canvas></div></div>
+                <div class="card"><h3>Top 5 Demanded Medicines</h3><div class="chart-container" style="height:250px;"><canvas id="topDemandedChart"></canvas></div></div>
+                <div class="card"><h3>Top Suppliers (By Sales Value)</h3><div class="chart-container" style="height:250px;"><canvas id="supplierChart"></canvas></div></div>
+            </div>
+        </section>
+        
+        <section id="deadstock" class="section">
+            <div class="card">
+                <h3>Non-Moving Inventory (Dead Stock)</h3>
+                <div style="max-height: 600px; overflow-y: auto;">
+                    <table>
+                        <thead><tr><th>Product Name</th><th>Category</th><th>Qty</th><th>Value (EGP)</th></tr></thead>
+                        <tbody id="deadBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        
+        <section id="expiry" class="section">
+            <div class="grid">
+                <div class="card">
+                    <h3>Inventory Expiry Timeline</h3>
+                    <div class="chart-container" style="height:300px;"><canvas id="expChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Risk Categorization <span class="ai-badge">AI: Advanced Neural Network (MLP)</span></h3>
+                    <div class="chart-container" style="height:300px;"><canvas id="riskChart"></canvas></div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top:20px; border-top: 4px solid #ef4444;">
+                <h3 style="color:#ef4444">EXPIRED ITEMS - REMOVE IMMEDIATELY</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table>
+                        <thead><tr><th>Product Name</th><th>Expiry Date</th><th>Value Lost (EGP)</th><th>Action Required</th></tr></thead>
+                        <tbody id="expiredTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid" style="margin-top:20px;">
+                <div class="card">
+                    <h3>Near-Expiry Product List (Active Stock)</h3>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>Product</th><th>Expiry Date</th><th>Days Left</th><th>At-Risk Value</th><th>Status</th></tr></thead>
+                            <tbody id="expiringTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Clearance Recommendations <span class="ai-badge">AI: Advanced Neural Network (MLP)</span></h3>
+                    <div id="promoList" style="max-height: 400px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="ai" class="section">
+            <div class="card" style="margin-bottom:20px;">
+                <h3>Market Demand Intelligence <span class="ai-badge">AI: XGBoost</span></h3>
+                <div id="forecastSummary"></div>
+                <h4 style="margin:10px 0; font-size:14px; color:#94a3b8">Predicted High-Demand Items for Next Month:</h4>
+                <div id="topDemanded" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
+            </div>
+            <div class="card">
+                <h3>Smart Reorder Engine <span class="ai-badge">AI: Q-Learning Logic</span></h3>
+                <div id="reorderOut" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:15px;"></div>
+            </div>
+        </section>
+        
+        <section id="audit" class="section">
+            <div class="card">
+                <h3>AI Integrity Audit <span class="ai-badge">AI: Autoencoder</span></h3>
+                <button class="action" onclick="runAudit()">Audit Financial Shifts</button>
+                <div id="auditOut"></div>
+            </div>
+        </section>
+    </div>
+    
+    <script>
+        const API = '/api';
+        let charts = {};
+
+        function nav(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (event) event.target.classList.add('active');
+            loadData(id);
+        }
+
+        async function loadData(s) {
+            if(s==='overview') loadOverview();
+            if(s==='deadstock') loadDeadStock();
+            if(s==='expiry') loadExpiry();
+            if(s==='ai') loadAI();
+        }
+
+        async function loadOverview() {
+            const stats = await fetch(`${API}/overview_stats`).then(r=>r.json());
+            document.getElementById('ov-red').textContent = stats.red_alerts;
+            document.getElementById('ov-expired').textContent = stats.expired_count + ' Expired';
+            document.getElementById('ov-soon').textContent = stats.red_alerts + ' Expiring Soon';
+            document.getElementById('ov-lost').textContent = Math.round(stats.expired_value).toLocaleString() + ' EGP';
+            
+            const demandData = await fetch(`${API}/monthly_demand`).then(r=>r.json());
+            
+            renderChart('demandChart', 'line', {
+                labels: demandData.months,
+                datasets: [{
+                    label: 'Total Monthly Demand',
+                    data: demandData.values,
+                    borderColor: '#3b82f6', // Bright Blue
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 6, // Circular markers
+                    pointBackgroundColor: '#3b82f6',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 8
+                }]
+            }, {
+                scales: {
+                    x: { ticks: { color: '#94a3b8' } },
+                    y: { 
+                        ticks: { stepSize: 100, color: '#94a3b8' } 
+                    }
+                },
+                plugins: { legend: { display: false } }
+            });
+            
+            const cat = await fetch(`${API}/category_distribution`).then(r=>r.json());
+            renderChart('catChart', 'doughnut', {
+                labels: cat.categories,
+                datasets: [{data:cat.values, backgroundColor:['#0d9488','#0ea5e9','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#94a3b8']}]
+            });
+
+            // Add: Top 5 Demanded Medicines Graph
+            const demand = await fetch(`${API}/demand_forecast`, {method:'POST', body:JSON.stringify({}), headers:{'Content-Type':'application/json'}}).then(r=>r.json());
+            const top5 = demand.top_demanded.slice(0, 5);
+            renderChart('topDemandedChart', 'bar', {
+                labels: top5.map(p => p.name),
+                datasets: [{
+                    label: 'Predicted Units',
+                    data: top5.map(p => p.units),
+                    backgroundColor: '#6366f1'
+                }]
+            }, {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } }
+            });
+
+            // Add: Top Suppliers Graph
+            const suppliers = await fetch(`${API}/supplier_distribution`).then(r=>r.json());
+            renderChart('supplierChart', 'pie', {
+                labels: suppliers.suppliers,
+                datasets: [{
+                    data: suppliers.values,
+                    backgroundColor: ['#f59e0b','#10b981','#0ea5e9','#6366f1','#ef4444','#8b5cf6','#94a3b8','#0d9488']
+                }]
+            });
+        }
+
+        async function loadDeadStock() {
+            const res = await fetch(`${API}/dead_stock`).then(r=>r.json());
+            document.getElementById('deadBody').innerHTML = res.data.map(d=>`
+                <tr><td>${d['Product Name']}</td><td>${d.Category}</td><td>${d.Quantity}</td><td style="color:#10b981;font-weight:bold">${Math.round(d.Stock_Value).toLocaleString()}</td></tr>
+            `).join('');
+        }
+
+        async function loadExpiry() {
+            const res = await fetch(`${API}/expiry_risk_prediction`).then(r=>r.json());
+            
+            document.getElementById('expiredTable').innerHTML = res.expired_list.map(p=>`
+                <tr style="background: rgba(239, 68, 68, 0.1);">
+                    <td style="font-weight:bold">${p['Product Name']}</td>
+                    <td style="color:#ef4444">${p['Expiry Date']}</td>
+                    <td style="color:#ef4444; font-weight:bold">${p['Total Inventory Value'].toLocaleString()} EGP</td>
+                    <td><span class="badge badge-red">REMOVE NOW</span></td>
+                </tr>
+            `).join('');
+
+            document.getElementById('expiringTable').innerHTML = res.expiring_list.map(p=>`
+                <tr>
+                    <td>${p['Product Name']}</td>
+                    <td>${p['Expiry Date']}</td>
+                    <td style="color:#f59e0b">${p.Days}</td>
+                    <td style="color:#ef4444; font-weight:bold">${p.Lost_Value.toLocaleString()} EGP</td>
+                    <td><span class="badge" style="background:${p.risk==2?'#ef4444':(p.risk==1?'#f59e0b':'#10b981')}">${p.risk==2?'Critical':(p.risk==1?'Monitor':'Safe')}</span></td>
+                </tr>
+            `).join('');
+
+            document.getElementById('promoList').innerHTML = res.promo_products.map(p=>`
+                <div class="promo-item">
+                    <div class="promo-tag">SAVE ${p.discount}%</div>
+                    <div style="font-weight:bold; margin-bottom:5px;">${p['Product Name']}</div>
+                    <div style="font-size:12px; opacity:0.7">Expires in: ${p.Days} days</div>
+                    <div class="price-box">
+                        <span class="old-price">${Math.round(p['Selling Price per Pack'])}</span>
+                        <span class="new-price">${p.sale_price.toFixed(1)} EGP</span>
+                    </div>
+                </div>
+            `).join('');
+
+            const timeline = await fetch(`${API}/expiry_timeline`).then(r=>r.json());
+            renderChart('expChart', 'line', {
+                labels: timeline.months,
+                datasets: [{label:'Value at Risk (EGP)', data:timeline.values, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', fill:true}]
+            });
+
+            renderChart('riskChart', 'bar', {
+                labels: res.risk_levels.map(l=>l.level),
+                datasets: [{
+                    label: 'Product Count',
+                    data: res.risk_levels.map(l=>l.count),
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                }]
+            }, {
+                plugins: { legend: { display: false } },
+                scales: { y: { type: 'logarithmic', ticks: { color: '#94a3b8' } } }
+            });
+        }
+
+        async function loadAI() {
+            runForecast();
+            const reorder = await fetch(`${API}/smart_reorder`, {method:'POST'}).then(r=>r.json());
+            document.getElementById('reorderOut').innerHTML = reorder.reorder_products.map(p=>`
+                <div class="reorder-card">
+                    <div style="font-weight:bold; color:#0ea5e9">${p.product}</div>
+                    <div style="font-size:12px; opacity:0.7; margin:5px 0">Stock: ${p.current_stock} | Avg. Monthly Velocity: ${p.avg_monthly} units</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <span style="color:#ef4444; font-weight:bold">${p.days_left} Days Left</span>
+                        <span class="badge" style="background:#f59e0b; color:black">REORDER THRESHOLD: ${p.reorder_point} UNITS</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function runForecast() {
+            const out = document.getElementById('forecastSummary');
+            if(out.innerHTML.includes('forecast-val')) return;
+            out.innerHTML = '<div class="forecast-box" style="border-left-color:#6366f1">AI Market Analysis in progress...</div>';
+            const res = await fetch(`${API}/demand_forecast`, {method:'POST', body:JSON.stringify({}), headers:{'Content-Type':'application/json'}}).then(r=>r.json());
+            out.innerHTML = `<div class="forecast-box"><div style="font-size:13px; color:#94a3b8">Predicted Future Demand:</div><div class="forecast-val">${Math.round(res.forecast_total).toLocaleString()} Units for next month</div></div>`;
+            
+            document.getElementById('topDemanded').innerHTML = res.top_demanded.map(p=>`
+                <div style="background:#334155; padding:10px; border-radius:8px; display:flex; justify-content:space-between; font-size:13px">
+                    <span>${p.name}</span>
+                    <span style="color:#10b981; font-weight:bold">Demand: ${Math.round(p.units)} Units</span>
+                </div>
+            `).join('');
+        }
+
+        async function runAudit() {
+            const out = document.getElementById('auditOut');
+            out.innerHTML = 'Neural Scanning...';
+            const res = await fetch(`${API}/anomaly_detection`, {method:'POST'}).then(r=>r.json());
+            out.innerHTML = `
+                <div style="margin-bottom:15px; font-weight:bold">${res.total_anomalies} discrepancies flagged.</div>
+                <table>
+                    <thead><tr><th>ID</th><th>Shift</th><th>Date</th><th>Diff (EGP)</th><th>Action</th></tr></thead>
+                    <tbody>
+                        ${res.anomalies.map(a=>`
+                            <tr>
+                                <td>#${a.ID}</td>
+                                <td style="color:#0ea5e9; font-weight:bold">${a.Shift_Name}</td>
+                                <td>${new Date(a['Start Date']).toLocaleDateString()}</td>
+                                <td style="color:${a.Difference<0?'#ef4444':'#10b981'}">${a.Difference}</td>
+                                <td>${Math.abs(a.Difference)>300?'<span class="badge badge-red">CHECK NOW</span>':'<span class="badge" style="color:#94a3b8">Minor</span>'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderChart(id, type, data, options = {}) {
+            if(charts[id]) charts[id].destroy();
+            const defaultOptions = { 
+                responsive:true, 
+                maintainAspectRatio:false, 
+                plugins:{legend:{labels:{color:'#94a3b8'}}} 
+            };
+            charts[id] = new Chart(document.getElementById(id), {
+                type: type, 
+                data: data,
+                options: { ...defaultOptions, ...options }
+            });
+        }
+
+        window.onload = loadOverview;
+    </script>
+</body>
+</html>
