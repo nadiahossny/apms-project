@@ -258,13 +258,17 @@ router.delete('/bulk/unknown', async (req, res) => {
 });
 
 // Delete Single Item Route
+// Professional Soft Delete Route
 router.delete('/:id', async (req, res) => {
   try {
-    await query('DELETE FROM medicines_inventory WHERE medicine_id = $1', [req.params.id]);
-    res.json({ message: 'Deleted successfully' });
+    // Instead of deleting, we flip a boolean flag
+    await query(
+      'UPDATE medicines_inventory SET is_archived = true WHERE medicine_id = $1', 
+      [req.params.id]
+    );
+    res.json({ message: 'Medicine archived successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete medicine' });
+    res.status(500).json({ message: 'Failed to archive medicine' });
   }
 });
-
 export default router;

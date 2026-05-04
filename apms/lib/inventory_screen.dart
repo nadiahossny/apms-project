@@ -169,8 +169,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  void _confirmAdHocDispatch(BuildContext context, Medicine m) {
-    String reason = 'Walk-in Sale'; 
+void _confirmAdHocDispatch(BuildContext context, Medicine m) {
     bool isSubmitting = false;
 
     showDialog(
@@ -190,34 +189,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Command the robot to pick 1 unit of ${m.tradeName}?'),
-              const SizedBox(height: 20),
-              const Text('Reason for dispatch:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AC.ink600)),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: AC.page,
-                  borderRadius: AR.r8,
-                  border: Border.all(color: AC.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: reason,
-                    isExpanded: true,
-                    items: ['Walk-in Sale', 'Damaged / Waste', 'Internal Display']
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13, color: AC.ink900))))
-                        .toList(),
-                    onChanged: (v) => setDialogState(() => reason = v!),
-                  ),
-                ),
-              ),
               const SizedBox(height: 12),
-              if (reason == 'Walk-in Sale') 
-                const Text('✅ This will command the robot, deduct 1 unit from stock, and log the revenue.', style: TextStyle(fontSize: 11, color: AC.greenFg, fontWeight: FontWeight.w600))
-              else if (reason == 'Damaged / Waste') 
-                const Text('⚠️ This will command the robot and deduct 1 unit as a financial loss.', style: TextStyle(fontSize: 11, color: AC.redFg, fontWeight: FontWeight.w600))
-              else 
-                const Text('ℹ️ This will only command the robot. Inventory will not be deducted.', style: TextStyle(fontSize: 11, color: AC.blue500, fontWeight: FontWeight.w600)),
+              const Text(
+                'ℹ️ This will only command the robot to pick the item for an order.', 
+                style: TextStyle(fontSize: 11, color: AC.blue500, fontWeight: FontWeight.w600)
+              ),
             ],
           ),
           actions: [
@@ -230,21 +206,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
               onPressed: isSubmitting ? null : () async {
                 setDialogState(() => isSubmitting = true);
                 try {
+                  // Simply dispatch the robot. No OTC sale logic is triggered.
                   await ApiService.robot.dispatchAdHoc(medicineId: m.id, name: m.tradeName, qty: 1, bin: m.storageLocation);
                   
-                  if (reason == 'Walk-in Sale') {
-                    await ApiService.prescriptions.createOtcSale([{ 'medicine_id': m.id, 'quantity': 1 }]);
-                  }
-
                   if(mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${m.tradeName} dispatched for $reason'), backgroundColor: AC.greenFg));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${m.tradeName} dispatched successfully'), 
+                        backgroundColor: AC.greenFg
+                      )
+                    );
                     _loadFromApi(); 
                   }
                 } catch (e) {
                   if(mounted) {
                     setDialogState(() => isSubmitting = false);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AC.redFg));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: AC.redFg)
+                    );
                   }
                 }
               },
@@ -257,7 +237,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
   }
-
   Future<void> _showDiscountDialog(BuildContext context, Medicine m) async {
     final ctrl = TextEditingController(text: m.discountPct > 0 ? m.discountPct.toStringAsFixed(0) : '');
     bool isSaving = false;

@@ -6,6 +6,7 @@ import { broadcastEvent } from '../index';
 const router = Router();
 router.use(authenticateToken);
 
+// 1. DISPATCH: Creates the job and tells the app the robot is moving (NO FAKE DELAY)
 router.post('/dispatch', async (req, res) => {
   try {
     const { prescription_id } = req.body;
@@ -32,72 +33,8 @@ router.post('/dispatch', async (req, res) => {
       RETURNING *
     `, [jobId, prescription_id, JSON.stringify(pickSeq)]);
 
-    setTimeout(() => {
-      broadcastEvent({ type: 'ROBOT_ACK', jobId, status: 'DISPATCHED', message: 'Robot has acknowledged job' });
-      
-      setTimeout(async () => {
-        let allSuccess = true;
-        const updatedPickSeq: any[] = [];
-
-        // --- NEW: VERIFY STOCK AND EXPIRY BEFORE DISPENSING ---
-        for (const item of pickSeq) {
-          try {
-            const checkRes = await query(`SELECT quantity_on_hand, expiration_date FROM medicines_inventory WHERE medicine_id = $1`, [item.medicine_id]);
-            
-            if (checkRes.rows.length === 0) {
-              updatedPickSeq.push({ ...item, status: 'FAILED' });
-              allSuccess = false;
-              continue;
-            }
-            
-            const med = checkRes.rows[0];
-            const isExpired = new Date(med.expiration_date) < new Date();
-            const notEnough = med.quantity_on_hand < item.qty;
-
-            if (isExpired || notEnough) {
-              updatedPickSeq.push({ ...item, status: 'FAILED' });
-              allSuccess = false;
-            } else {
-              updatedPickSeq.push({ ...item, status: 'DONE' });
-            }
-          } catch (err) {
-            updatedPickSeq.push({ ...item, status: 'FAILED' });
-            allSuccess = false;
-          }
-        }
-        // ------------------------------------------------------
-
-        const finalStatus = allSuccess ? 'COMPLETED' : 'FAILED';
-        await query(`UPDATE robot_jobs SET status = $1, pick_sequence = $2, completed_at = CURRENT_TIMESTAMP WHERE job_id = $3`, [finalStatus, JSON.stringify(updatedPickSeq), jobId]);
-        
-        // --- AUTO-CHECKOUT PRESCRIPTION (ONLY IF ALL ITEMS SUCCEEDED) ---
-        if (allSuccess) {
-          try {
-            // 1. Mark prescription COMPLETE
-            await query(`UPDATE prescriptions SET status = 'COMPLETE' WHERE prescription_id = $1 AND status != 'COMPLETE'`, [prescription_id]);
-            // 2. Sync dispensed quantities
-            await query(`UPDATE prescription_items SET quantity_dispensed = quantity_prescribed WHERE prescription_id = $1`, [prescription_id]);
-            // 3. Deduct from physical inventory
-            await query(`
-              UPDATE medicines_inventory m
-              SET quantity_on_hand = m.quantity_on_hand - pi.quantity_dispensed
-              FROM prescription_items pi
-              WHERE m.medicine_id = pi.medicine_id AND pi.prescription_id = $1
-            `, [prescription_id]);
-          } catch(err) {
-            console.error("Auto-checkout failed:", err);
-          }
-        }
-        // ---------------------------------------
-
-        broadcastEvent({ 
-          type: 'ROBOT_ACK', 
-          jobId, 
-          status: finalStatus, 
-          message: allSuccess ? 'Job completed successfully' : 'Job failed: Expiry or stock error' 
-        });
-      }, 5000);
-    }, 1000);
+    // Instantly tell Flutter App the robot started moving
+    broadcastEvent({ type: 'ROBOT_ACK', jobId, status: 'DISPATCHED', message: 'Robot is moving to grab the medicine...' });
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -106,6 +43,7 @@ router.post('/dispatch', async (req, res) => {
   }
 });
 
+// 2. RETRY: Resets job status to DISPATCHED (NO FAKE DELAY)
 router.post('/retry/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
@@ -113,7 +51,6 @@ router.post('/retry/:jobId', async (req, res) => {
     
     if(jobRes.rows.length === 0) return res.status(404).json({message: 'Job not found'});
     
-    const pId = jobRes.rows[0].prescription_id;
     const pickSeq = typeof jobRes.rows[0].pick_sequence === 'string' ? JSON.parse(jobRes.rows[0].pick_sequence) : jobRes.rows[0].pick_sequence;
     const resetSeq = pickSeq.map((p: any) => ({ ...p, status: 'PENDING' }));
 
@@ -123,68 +60,7 @@ router.post('/retry/:jobId', async (req, res) => {
       WHERE job_id = $1 RETURNING *
     `, [jobId, JSON.stringify(resetSeq)]);
 
-    setTimeout(() => {
-      broadcastEvent({ type: 'ROBOT_ACK', jobId, status: 'DISPATCHED', message: 'Robot retrying job' });
-      
-      setTimeout(async () => {
-        let allSuccess = true;
-        const updatedPickSeq: any[] = [];
-
-        // --- NEW: VERIFY RETRY STOCK AND EXPIRY ---
-        for (const item of resetSeq) {
-          try {
-            const checkRes = await query(`SELECT quantity_on_hand, expiration_date FROM medicines_inventory WHERE medicine_id = $1`, [item.medicine_id]);
-            if (checkRes.rows.length === 0) {
-              updatedPickSeq.push({ ...item, status: 'FAILED' });
-              allSuccess = false;
-              continue;
-            }
-            
-            const med = checkRes.rows[0];
-            const isExpired = new Date(med.expiration_date) < new Date();
-            const notEnough = med.quantity_on_hand < item.qty;
-
-            if (isExpired || notEnough) {
-              updatedPickSeq.push({ ...item, status: 'FAILED' });
-              allSuccess = false;
-            } else {
-              updatedPickSeq.push({ ...item, status: 'DONE' });
-            }
-          } catch (err) {
-            updatedPickSeq.push({ ...item, status: 'FAILED' });
-            allSuccess = false;
-          }
-        }
-        // ------------------------------------------
-
-        const finalStatus = allSuccess ? 'COMPLETED' : 'FAILED';
-        await query(`UPDATE robot_jobs SET status = $1, pick_sequence = $2, completed_at = CURRENT_TIMESTAMP WHERE job_id = $3`, [finalStatus, JSON.stringify(updatedPickSeq), jobId]);
-        
-        // --- AUTO-CHECKOUT RETRY (ONLY IF SUCCESSFUL) ---
-        if (allSuccess && pId) {
-          try {
-            await query(`UPDATE prescriptions SET status = 'COMPLETE' WHERE prescription_id = $1 AND status != 'COMPLETE'`, [pId]);
-            await query(`UPDATE prescription_items SET quantity_dispensed = quantity_prescribed WHERE prescription_id = $1`, [pId]);
-            await query(`
-              UPDATE medicines_inventory m
-              SET quantity_on_hand = m.quantity_on_hand - pi.quantity_dispensed
-              FROM prescription_items pi
-              WHERE m.medicine_id = pi.medicine_id AND pi.prescription_id = $1
-            `, [pId]);
-          } catch(err) {
-            console.error("Auto-checkout retry failed:", err);
-          }
-        }
-        // --------------------------------
-
-        broadcastEvent({ 
-          type: 'ROBOT_ACK', 
-          jobId, 
-          status: finalStatus, 
-          message: allSuccess ? 'Retry completed successfully' : 'Retry failed: Expiry or stock error' 
-        });
-      }, 5000);
-    }, 1000);
+    broadcastEvent({ type: 'ROBOT_ACK', jobId, status: 'DISPATCHED', message: 'Robot is retrying job...' });
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -193,6 +69,7 @@ router.post('/retry/:jobId', async (req, res) => {
   }
 });
 
+// 3. AD-HOC DISPATCH: (NO FAKE DELAY)
 router.post('/dispatch-adhoc', async (req, res) => {
   try {
     const { medicine_id, name, qty, bin } = req.body;
@@ -205,51 +82,7 @@ router.post('/dispatch-adhoc', async (req, res) => {
       RETURNING *
     `, [jobId, JSON.stringify(pickSeq)]);
 
-    setTimeout(() => {
-      broadcastEvent({ type: 'ROBOT_ACK', jobId, status: 'DISPATCHED', message: 'Robot acknowledged ad-hoc job' });
-      
-      setTimeout(async () => {
-        let allSuccess = true;
-        const updatedPickSeq: any[] = [];
-
-        // --- NEW: VERIFY AD-HOC STOCK AND EXPIRY ---
-        for (const item of pickSeq) {
-          try {
-            const checkRes = await query(`SELECT quantity_on_hand, expiration_date FROM medicines_inventory WHERE medicine_id = $1`, [item.medicine_id]);
-            if (checkRes.rows.length === 0) {
-              updatedPickSeq.push({ ...item, status: 'FAILED' });
-              allSuccess = false;
-              continue;
-            }
-            
-            const med = checkRes.rows[0];
-            const isExpired = new Date(med.expiration_date) < new Date();
-            const notEnough = med.quantity_on_hand < item.qty;
-
-            if (isExpired || notEnough) {
-              updatedPickSeq.push({ ...item, status: 'FAILED' });
-              allSuccess = false;
-            } else {
-              updatedPickSeq.push({ ...item, status: 'DONE' });
-            }
-          } catch (err) {
-            updatedPickSeq.push({ ...item, status: 'FAILED' });
-            allSuccess = false;
-          }
-        }
-        // -------------------------------------------
-
-        const finalStatus = allSuccess ? 'COMPLETED' : 'FAILED';
-        await query(`UPDATE robot_jobs SET status = $1, pick_sequence = $2, completed_at = CURRENT_TIMESTAMP WHERE job_id = $3`, [finalStatus, JSON.stringify(updatedPickSeq), jobId]);
-        
-        broadcastEvent({ 
-          type: 'ROBOT_ACK', 
-          jobId, 
-          status: finalStatus, 
-          message: allSuccess ? 'Ad-hoc pick completed' : 'Ad-hoc pick failed: Check stock' 
-        });
-      }, 5000);
-    }, 1000);
+    broadcastEvent({ type: 'ROBOT_ACK', jobId, status: 'DISPATCHED', message: 'Robot is moving for ad-hoc pick...' });
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -258,6 +91,55 @@ router.post('/dispatch-adhoc', async (req, res) => {
   }
 });
 
+// 4. NEW: WAITS FOR AHMED'S PYTHON SCRIPT TO SEND SUCCESS/FAILURE
+router.post('/dispense-success', async (req, res) => {
+  try {
+    const { job_id, drug_found, status } = req.body;
+
+    const jobRes = await query(`SELECT prescription_id, pick_sequence FROM robot_jobs WHERE job_id = $1`, [job_id]);
+    if (jobRes.rows.length === 0) return res.status(404).json({ message: 'Job not found' });
+    
+    const pId = jobRes.rows[0].prescription_id;
+    let pickSeq = typeof jobRes.rows[0].pick_sequence === 'string' ? JSON.parse(jobRes.rows[0].pick_sequence) : jobRes.rows[0].pick_sequence;
+
+    // Mark items as DONE
+    pickSeq = pickSeq.map((item: any) => ({ ...item, status: status === 'COMPLETED' ? 'DONE' : 'FAILED' }));
+
+    // Update job status in DB
+    await query(`
+      UPDATE robot_jobs 
+      SET status = $1, pick_sequence = $2, completed_at = CURRENT_TIMESTAMP 
+      WHERE job_id = $3
+    `, [status, JSON.stringify(pickSeq), job_id]);
+
+    // Auto-checkout and deduct inventory if successful
+    if (status === 'COMPLETED' && pId) {
+      await query(`UPDATE prescriptions SET status = 'COMPLETE' WHERE prescription_id = $1 AND status != 'COMPLETE'`, [pId]);
+      await query(`UPDATE prescription_items SET quantity_dispensed = quantity_prescribed WHERE prescription_id = $1`, [pId]);
+      await query(`
+        UPDATE medicines_inventory m
+        SET quantity_on_hand = m.quantity_on_hand - pi.quantity_dispensed
+        FROM prescription_items pi
+        WHERE m.medicine_id = pi.medicine_id AND pi.prescription_id = $1
+      `, [pId]);
+    }
+
+    // Tell the Flutter App it's done!
+    broadcastEvent({ 
+      type: 'ROBOT_ACK', 
+      jobId: job_id, 
+      status: status, 
+      message: status === 'COMPLETED' ? `${drug_found} was successfully dispensed by the arm` : `Robot failed to dispense`
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// --- EXISTING ABORT, DELETE, AND GET ROUTES REMAIN THE SAME ---
 router.post('/abort/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
