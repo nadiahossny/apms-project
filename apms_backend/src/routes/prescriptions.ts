@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, pool } from '../db';
 import { authenticateToken } from '../middleware/auth';
+import { broadcastEvent } from '../ws';
 import { z } from 'zod';
 
 const router = Router();
@@ -238,6 +239,18 @@ router.patch('/items/:itemId/link', async (req, res) => {
 
     if (updateResult.rows.length === 0) {
       return res.status(404).json({ message: 'Prescription item not found' });
+    }
+
+    // Check if all items in this prescription are linked
+    const prescriptionId = updateResult.rows[0].prescription_id;
+    const allItems = await query(`SELECT medicine_id FROM prescription_items WHERE prescription_id = $1`, [prescriptionId]);
+    const allLinked = allItems.rows.every(item => item.medicine_id !== null);
+    
+    if (allLinked) {
+      broadcastEvent({
+        type: 'ORDER_READY',
+        payload: { prescription_id: prescriptionId }
+      });
     }
 
     res.json(updateResult.rows[0]);

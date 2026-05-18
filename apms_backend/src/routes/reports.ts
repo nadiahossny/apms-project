@@ -22,16 +22,35 @@ router.get('/dashboard', async (req: any, res) => {
         WHERE is_archived = FALSE
       `),
       query(`
-        SELECT DATE(pi.dispensed_at) as day, COALESCE(SUM(pi.quantity_dispensed * pi.pay_rate_at_sale), 0) as revenue
-        FROM prescription_items pi
-        WHERE pi.dispensed_at >= CURRENT_DATE - INTERVAL '6 days' AND pi.status = 'DISPENSED'
-        GROUP BY DATE(pi.dispensed_at) ORDER BY day ASC
+        WITH Last7Days AS (
+          SELECT generate_series(
+            CURRENT_DATE - INTERVAL '6 days',
+            CURRENT_DATE,
+            '1 day'::interval
+          )::date AS day
+        )
+        SELECT 
+          TO_CHAR(d.day, 'YYYY-MM-DD') as date_str, 
+          COALESCE(SUM(
+            GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0) * COALESCE(NULLIF(pi.pay_rate_at_sale, 0), m.pay_rate, 0)
+          ), 0) as revenue
+        FROM Last7Days d
+        LEFT JOIN prescription_items pi 
+          ON DATE(COALESCE(pi.dispensed_at, pi.created_at)) = d.day AND pi.status != 'CANCELLED'
+        LEFT JOIN medicines_inventory m ON pi.medicine_id = m.medicine_id
+        GROUP BY d.day 
+        ORDER BY d.day ASC
       `),
       query(`
-        SELECT TO_CHAR(DATE_TRUNC('month', pi.dispensed_at), 'Mon YY') as label, COALESCE(SUM(pi.quantity_dispensed * pi.pay_rate_at_sale), 0) as value
+        SELECT TO_CHAR(DATE_TRUNC('month', COALESCE(pi.dispensed_at, pi.created_at)), 'Mon YY') as label, 
+        COALESCE(SUM(
+          GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0) * COALESCE(NULLIF(pi.pay_rate_at_sale, 0), m.pay_rate, 0)
+        ), 0) as value
         FROM prescription_items pi
-        WHERE pi.dispensed_at >= CURRENT_DATE - INTERVAL '7 months' AND pi.status = 'DISPENSED'
-        GROUP BY DATE_TRUNC('month', pi.dispensed_at) ORDER BY DATE_TRUNC('month', pi.dispensed_at) ASC
+        LEFT JOIN medicines_inventory m ON pi.medicine_id = m.medicine_id
+        WHERE COALESCE(pi.dispensed_at, pi.created_at) >= CURRENT_DATE - INTERVAL '7 months' AND pi.status != 'CANCELLED'
+        GROUP BY DATE_TRUNC('month', COALESCE(pi.dispensed_at, pi.created_at)) 
+        ORDER BY DATE_TRUNC('month', COALESCE(pi.dispensed_at, pi.created_at)) ASC
       `),
       query(`SELECT log_id, event_type, summary, created_at FROM activity_logs ORDER BY created_at DESC LIMIT 8`),
       query(`SELECT prescription_id, patient_name, created_at, status FROM prescriptions WHERE status = 'PENDING' ORDER BY created_at DESC LIMIT 5`),
@@ -60,17 +79,8 @@ router.get('/dashboard', async (req: any, res) => {
 
     const kpiRow = stockResult.rows[0];
 
-    const dailyRevenue: number[] = [];
-    const revenueMap = new Map<string, number>();
-    for (const row of revenueResult.rows) {
-      revenueMap.set(row.day.toISOString().split('T')[0], parseFloat(row.revenue));
-    }
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().split('T')[0];
-      dailyRevenue.push(revenueMap.get(key) ?? 0);
-    }
+    // SQL guarantees exactly 7 days in perfect chronological order!
+    const dailyRevenue = revenueResult.rows.map(row => parseFloat(row.revenue));
 
     const isManager = userRole === 'manager';
 
@@ -107,12 +117,13 @@ router.get('/analytics', async (req: any, res) => {
     const [revenueResult, wasteResult, topMedResult, topSupResult, expiryResult, mostPrescResult] = await Promise.all([
       query(`
         SELECT 
-          COALESCE(SUM(pi.quantity_dispensed * pi.pay_rate_at_sale), 0) as total_revenue, 
-          COALESCE(SUM(pi.line_profit), 0) as total_profit, 
-          COALESCE(SUM(pi.quantity_dispensed), 0) as units_dispensed 
+          COALESCE(SUM(GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0) * COALESCE(NULLIF(pi.pay_rate_at_sale, 0), m.pay_rate, 0)), 0) as total_revenue, 
+          COALESCE(SUM(GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0) * (COALESCE(NULLIF(pi.pay_rate_at_sale, 0), m.pay_rate, 0) - COALESCE(NULLIF(pi.unit_cost_at_sale, 0), m.unit_cost, 0))), 0) as total_profit, 
+          COALESCE(SUM(GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0)), 0) as units_dispensed 
         FROM prescription_items pi 
-        WHERE pi.status = 'DISPENSED' 
-        AND pi.dispensed_at >= CURRENT_DATE - INTERVAL '365 days'
+        LEFT JOIN medicines_inventory m ON pi.medicine_id = m.medicine_id
+        WHERE pi.status != 'CANCELLED' 
+        AND COALESCE(pi.dispensed_at, pi.created_at) >= CURRENT_DATE - INTERVAL '365 days'
       `),
       query(`
         SELECT COALESCE(SUM(quantity_on_hand * pay_rate), 0) as waste_value 
@@ -122,11 +133,13 @@ router.get('/analytics', async (req: any, res) => {
         AND is_archived = FALSE
       `),
       query(`
-        SELECT m.trade_name as name, SUM(pi.quantity_dispensed) as units, SUM(pi.quantity_dispensed * pi.pay_rate_at_sale) as revenue 
+        SELECT m.trade_name as name, 
+        SUM(GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0)) as units, 
+        SUM(GREATEST(pi.quantity_dispensed, pi.quantity_prescribed, 0) * COALESCE(NULLIF(pi.pay_rate_at_sale, 0), m.pay_rate, 0)) as revenue 
         FROM prescription_items pi 
         JOIN medicines_inventory m ON pi.medicine_id = m.medicine_id 
-        WHERE pi.status = 'DISPENSED' 
-        AND pi.dispensed_at >= CURRENT_DATE - INTERVAL '365 days'
+        WHERE pi.status != 'CANCELLED' 
+        AND COALESCE(pi.dispensed_at, pi.created_at) >= CURRENT_DATE - INTERVAL '365 days'
         GROUP BY m.trade_name ORDER BY revenue DESC LIMIT 10
       `),
       query(`
@@ -148,7 +161,7 @@ router.get('/analytics', async (req: any, res) => {
         SELECT COALESCE(m.trade_name, pi.requested_name, 'Unknown') as name, COUNT(*) as prescription_count 
         FROM prescription_items pi 
         LEFT JOIN medicines_inventory m ON pi.medicine_id = m.medicine_id 
-        WHERE pi.dispensed_at >= CURRENT_DATE - INTERVAL '365 days'
+        WHERE COALESCE(pi.dispensed_at, pi.created_at) >= CURRENT_DATE - INTERVAL '365 days' AND pi.status != 'CANCELLED'
         GROUP BY COALESCE(m.trade_name, pi.requested_name, 'Unknown') 
         ORDER BY prescription_count DESC LIMIT 5
       `)

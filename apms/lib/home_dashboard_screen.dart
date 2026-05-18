@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:apms/rx_scanner_screen.dart';
 import 'package:apms/widgets/shared_widgets.dart';
+import 'package:apms/screens/ai_chatbot_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:apms/widgets/DashboardKpiRow.dart';
@@ -155,8 +156,6 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-// Inside lib/home_dashboard_screen.dart
-
 class DashboardTopbar extends StatelessWidget {
   const DashboardTopbar({super.key});
 
@@ -169,7 +168,6 @@ class DashboardTopbar extends StatelessWidget {
         border: Border(bottom: BorderSide(color: AC.border, width: 0.5)), 
         boxShadow: [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2))]
       ),
-      // 🌟 REMOVED 'const' from Row below
       child: Row(
         children: [
           const Column(
@@ -180,8 +178,19 @@ class DashboardTopbar extends StatelessWidget {
               Text('Good morning — here\'s what\'s happening today', style: AppType.muted),
             ],
           ),
-          const Spacer(), // Pushes the button to the right
-          // 🌟 NEW: Scan Roshetta action
+          const Spacer(),
+          appBtn(
+            'Ask AI',
+            bg: AC.blueLt,
+          fg: AC.ink600,
+            icon: Icons.auto_awesome,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiChatbotScreen())
+              );
+            },
+          ),
+          const SizedBox(width: 12),
           appBtn(
             'Scan Prescription',
             bg: AC.blueLt,
@@ -237,6 +246,7 @@ class SalesChartCard extends StatefulWidget {
   @override
   State<SalesChartCard> createState() => _SalesChartCardState();
 }
+// 🌟 BULLETPROOF GRAPH FIX
 
 class _SalesChartCardState extends State<SalesChartCard> {
   bool _isDaily = true; // Toggle state
@@ -248,9 +258,19 @@ class _SalesChartCardState extends State<SalesChartCard> {
     
     if (widget.dbData != null) {
       if (_isDaily) {
-        // Last 6 days
-        labels = ['D-5', 'D-4', 'D-3', 'D-2', 'Yest.', 'Today'];
-        values = widget.dbData!.dailyRevenue;
+        labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'Yest.', 'Today'];
+        List<double> rawVals = widget.dbData!.dailyRevenue;
+        
+        // 🌟 BULLETPROOFING: If backend sends 6 items, pad it to 7 so the chart never breaks!
+        if (rawVals.length >= 7) {
+          values = rawVals.sublist(rawVals.length - 7);
+        } else {
+          values = List.filled(7, 0.0);
+          int offset = 7 - rawVals.length;
+          for (int i = 0; i < rawVals.length; i++) {
+            values[offset + i] = rawVals[i];
+          }
+        }
       } else {
         // Last 7 months
         if (widget.dbData!.salesData.isNotEmpty) {
@@ -260,9 +280,10 @@ class _SalesChartCardState extends State<SalesChartCard> {
       }
     }
 
+    // Failsafe if data is totally empty
     if (labels.isEmpty) {
-      labels = ['Jan', 'Feb', 'Mar'];
-      values = [0, 0, 0];
+      labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+      values = [0, 0, 0, 0, 0, 0, 0];
     }
 
     double maxY = 0;
@@ -272,7 +293,9 @@ class _SalesChartCardState extends State<SalesChartCard> {
       spots.add(FlSpot(i.toDouble(), values[i]));
     }
     
-    double calculatedInterval = maxY > 0 ? math.max(1.0, (maxY / 5).ceilToDouble()) : 1.0;
+    // Prevent UI crash if all sales are exactly 0
+    if (maxY == 0) maxY = 10; 
+    double calculatedInterval = math.max(1.0, (maxY / 5).ceilToDouble());
 
     return Container(
       height: 400, 
@@ -294,7 +317,6 @@ class _SalesChartCardState extends State<SalesChartCard> {
                   ],
                 ),
               ),
-              // 🌟 The Toggle Switch!
               Container(
                 height: 32,
                 decoration: BoxDecoration(color: const Color(0xFFF3F6FA), borderRadius: AR.pill, border: Border.all(color: AC.border)),
@@ -314,7 +336,10 @@ class _SalesChartCardState extends State<SalesChartCard> {
             Expanded(
               child: LineChart(
                 LineChartData(
-                  minY: 0, maxY: maxY * 1.2,
+                  minX: 0,
+                  maxX: (labels.length - 1).toDouble(), // 🌟 FORCES the grid to draw 7 columns no matter what!
+                  minY: 0, 
+                  maxY: maxY * 1.2,
                   gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (value) => FlLine(color: AC.border, strokeWidth: 1, dashArray: [5, 5])),
                   titlesData: FlTitlesData(
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -372,8 +397,6 @@ class _SalesChartCardState extends State<SalesChartCard> {
     );
   }
 }
-
-// 🌟 FIXED THEME - Plain white to match dashboard!
 class StockHighlightsCard extends StatelessWidget {
   final DashboardMetricsDto? dbData;
 
@@ -428,7 +451,7 @@ class StockHighlightsCard extends StatelessWidget {
                     : highlightItems,
                 ),
           ),
-             
+              
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pushReplacementNamed('/inventory'),

@@ -2,6 +2,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:roshetety/screens/ocr_screen.dart';
+import 'package:roshetety/screens/patient_order_tracking_screen.dart';
 import 'package:roshetety/services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,6 +17,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _manualInputController = TextEditingController();
   late bool _currentArabic;
   bool _isSubmitting = false;
+  
+  // New state for quantity management
+  int _manualQuantity = 1; 
 
   @override
   void initState() {
@@ -35,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFF4F9FF), Color(0xFFE0EAFC)], // Soft pastel blue sky
+              colors: [Color(0xFFF4F9FF), Color(0xFFE0EAFC)], 
             ),
           ),
           child: SafeArea(
@@ -44,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Top Language Toggle ──
+                  // --- Top Language Toggle ---
                   Align(
                     alignment: _currentArabic ? Alignment.topLeft : Alignment.topRight,
                     child: TextButton(
@@ -61,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   
                   const SizedBox(height: 40),
 
-                  // ── Action Section: Manual Request ──
+                  // --- Action Section: Manual Request ---
                   _sectionHeader(_t('طلب سريع', 'Quick Request')),
                   const SizedBox(height: 16),
                   _buildGlassCard(
@@ -77,6 +81,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             contentPadding: const EdgeInsets.all(20),
                           ),
                         ),
+                        
+                        // --- Quantity Selector UI ---
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(_t('الكمية', 'Quantity'), 
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6B7280))),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F9FF),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFF8AB6F9).withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline, color: Color(0xFF5A8DEE), size: 22),
+                                      onPressed: () {
+                                        if (_manualQuantity > 1) {
+                                          setState(() => _manualQuantity--);
+                                        }
+                                      },
+                                    ),
+                                    Text('$_manualQuantity', 
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, color: Color(0xFF5A8DEE), size: 22),
+                                      onPressed: () => setState(() => _manualQuantity++),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         _buildActionPill(
                           label: _t('إرسال للصيدلية', 'Send to Pharmacy'),
                           onTap: _submitManualOrder,
@@ -89,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 40),
 
-                  // ── Action Section: OCR Scan ──
+                  // --- Action Section: OCR Scan ---
                   _sectionHeader(_t('مسح الروشتة', 'Scan Prescription')),
                   const SizedBox(height: 16),
                   GestureDetector(
@@ -119,16 +161,47 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                ],
+
+                  const SizedBox(height: 40),
+
+                  // --- Action Section: Track Order ---
+                  _sectionHeader(_t('تتبع الطلب', 'Track Order')),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _showTrackOrderDialog,
+                    child: _buildGlassCard(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8AB6F9).withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.track_changes_rounded, size: 40, color: Color(0xFF5A8DEE)),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(_t('تتبع طلبك الحالي', 'Track your current order'), 
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF5A8DEE))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+  
+            
               ),
-            ),
+                ],
           ),
         ),
-      ),
-    );
+      ))))
+      ;
   }
 
-  // ── UI Components ──
+  // --- UI Components ---
 
   Widget _sectionHeader(String text) => Text(text, 
     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)));
@@ -179,16 +252,84 @@ class _HomeScreenState extends State<HomeScreen> {
     if (text.isEmpty) return;
     setState(() => _isSubmitting = true);
     try {
-      // Direct call to place order with "requested" name
-      await RoshettyApi.placeOrder(cartItems: [{'requested': text, 'quantity': 1}]);
+      // Send the medicine name and the selected quantity
+      final orderId = await RoshettyApi.placeOrder(
+        cartItems: [{
+          'requested': text, 
+          'quantity': _manualQuantity 
+        }]
+      );
+      
       if (!mounted) return;
       _manualInputController.clear();
-      _showCustomToast(_t('تم الإرسال بنجاح', 'Sent successfully'));
+      setState(() => _manualQuantity = 1); 
+      
+      if (orderId != null) {
+        _showOrderSuccessDialog(orderId);
+      } else {
+        _showCustomToast(_t('تم الإرسال بنجاح', 'Sent successfully'));
+      }
     } catch (e) {
       _showCustomToast(_t('فشل الإرسال', 'Failed to send'), isError: true);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _showOrderSuccessDialog(int orderId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Directionality(
+          textDirection: _currentArabic ? TextDirection.rtl : TextDirection.ltr,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(_t('تم الإرسال بنجاح!', 'Order Sent Successfully!'), style: const TextStyle(color: Color(0xFF5A8DEE), fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_t('يرجى الاحتفاظ برقم الطلب لتتبعه:', 'Please keep this Order ID to track it:'), textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8AB6F9).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    '#$orderId',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), letterSpacing: 2),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(_t('حسناً', 'OK'), style: const TextStyle(color: Color(0xFF5A8DEE))),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF5A8DEE),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PatientOrderTrackingScreen(prescriptionId: orderId),
+                    ),
+                  );
+                },
+                child: Text(_t('تتبع الآن', 'Track Now'), style: const TextStyle(color: Colors.white)),
+              )
+            ],
+          ),
+        );
+      }
+    );
   }
 
   void _showCustomToast(String msg, {bool isError = false}) {
@@ -199,6 +340,62 @@ class _HomeScreenState extends State<HomeScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       ),
+    );
+  }
+
+  void _showTrackOrderDialog() {
+    final TextEditingController trackController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Directionality(
+          textDirection: _currentArabic ? TextDirection.rtl : TextDirection.ltr,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(_t('تتبع الطلب', 'Track Order'), style: const TextStyle(color: Color(0xFF5A8DEE), fontWeight: FontWeight.bold)),
+            content: TextField(
+              controller: trackController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: _t('أدخل رقم الطلب', 'Enter Order ID'),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF5A8DEE), width: 2),
+                  borderRadius: BorderRadius.circular(15)
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(_t('إلغاء', 'Cancel'), style: const TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF5A8DEE),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  final text = trackController.text.trim();
+                  if (text.isNotEmpty) {
+                    final id = int.tryParse(text);
+                    if (id != null) {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PatientOrderTrackingScreen(prescriptionId: id),
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: Text(_t('تتبع', 'Track'), style: const TextStyle(color: Colors.white)),
+              )
+            ],
+          ),
+        );
+      }
     );
   }
 }

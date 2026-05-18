@@ -38,25 +38,80 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+import { initWebSocket, broadcastEvent } from './ws';
+
 // Create HTTP server
 const server = http.createServer(app);
 
-// Setup WebSocket Server for Robot ACK feed
-const wss = new WebSocketServer({ server });
+// Setup WebSocket Server
+initWebSocket(server);
 
-wss.on('connection', (ws) => {
-  console.log('Client connected to WebSocket feed');
-  ws.on('close', () => console.log('Client disconnected'));
+// Order Tracking Endpoint
+app.get('/api/track-order/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const rxRes = await pool.query('SELECT status, roshetta_code FROM prescriptions WHERE prescription_id = $1', [id]);
+    if (rxRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    
+    const itemsRes = await pool.query('SELECT medicine_id FROM prescription_items WHERE prescription_id = $1', [id]);
+    
+    const allLinked = itemsRes.rows.length > 0 && itemsRes.rows.every(item => item.medicine_id !== null);
+    const isReady = allLinked || rxRes.rows[0].status === 'COMPLETE' || rxRes.rows[0].status === 'DISPENSED';
+
+    res.json({
+      prescription_id: id,
+      roshetta_code: rxRes.rows[0].roshetta_code,
+      status: rxRes.rows[0].status,
+      is_ready: isReady
+    });
+  } catch (error) {
+    console.error('Error fetching order status:', error);
+    res.status(500).json({ error: 'Failed to fetch status' });
+  }
 });
 
-// Broadcast helper for emitting ACK events to connected Flutter clients
-export const broadcastEvent = (event: any) => {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(event));
-    }
-  });
-};
+// Order Communications Endpoints
+app.get('/api/prescriptions/:id/chat', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      'SELECT * FROM order_communications WHERE prescription_id = $1 ORDER BY created_at ASC',
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching chat messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+app.post('/api/prescriptions/:id/chat', async (req, res) => {
+  const { id } = req.params;
+  const { sender_type, message } = req.body;
+  
+  if (!sender_type || !message) {
+    return res.status(400).json({ error: 'sender_type and message are required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'INSERT INTO order_communications (prescription_id, sender_type, message) VALUES ($1, $2, $3) RETURNING *',
+      [id, sender_type, message]
+    );
+    const newMsg = result.rows[0];
+
+    // Broadcast the new message via WebSockets
+    broadcastEvent({
+      type: 'chat_message',
+      payload: newMsg,
+    });
+
+    res.status(201).json(newMsg);
+  } catch (error) {
+    console.error('Error saving chat message:', error);
+    res.status(500).json({ error: 'Failed to save message' });
+  }
+});
 
 server.listen(port, () => {
   console.log(`Backend Gateway running on port ${port}`);

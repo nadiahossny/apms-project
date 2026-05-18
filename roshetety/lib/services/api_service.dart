@@ -56,7 +56,7 @@ class RoshettyApi {
   }
 
   // إرسال الطلب لقاعدة البيانات
-  static Future<bool> placeOrder({
+  static Future<int?> placeOrder({
     required List<Map<String, dynamic>> cartItems,
     String? patientName,
   }) async {
@@ -81,7 +81,8 @@ class RoshettyApi {
       ).timeout(_timeout);
 
       if (resp.statusCode == 201 || resp.statusCode == 200) {
-        return true;
+        final data = jsonDecode(resp.body);
+        return data['prescription_id'] as int?;
       } else {
         print("APMS Server Error: ${resp.statusCode} - ${resp.body}");
         throw NetworkException('Server rejected order: ${resp.statusCode}');

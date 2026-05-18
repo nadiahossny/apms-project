@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { query } from '../db';
 import { authenticateToken } from '../middleware/auth';
-import { broadcastEvent } from '../index';
+import { broadcastEvent } from '../ws';
 
 const router = Router();
-router.use(authenticateToken);
+// router.use(authenticateToken);
 
 // 1. DISPATCH: Creates the job and tells the app the robot is moving (NO FAKE DELAY)
 router.post('/dispatch', async (req, res) => {

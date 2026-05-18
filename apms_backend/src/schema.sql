@@ -140,3 +140,12 @@ INSERT INTO users (full_name, email, password_hash, role) VALUES
   '$2b$12$Y/yYgQ/y/QYy/QYy/QYy/QYy/QYy/QYy/QYy/QYy/QYy/QYy/QYy/Q', -- Staff@2024
   'staff'
 ) ON CONFLICT (email) DO NOTHING;
+
+-- 10. Order Communications (Chat between Manager and Patient)
+CREATE TABLE IF NOT EXISTS order_communications (
+    message_id SERIAL PRIMARY KEY,
+    prescription_id INT REFERENCES prescriptions(prescription_id) ON DELETE CASCADE,
+    sender_type VARCHAR(50) NOT NULL, -- e.g., 'MANAGER', 'PATIENT'
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

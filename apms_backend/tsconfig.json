@@ -14,5 +14,5 @@
   "ts-node": {
     "esm": false
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "src/routes/backup.ts", "sheet_bridge.js"]
 }
