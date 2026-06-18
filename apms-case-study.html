@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Study: APMS — Advanced Pharmacy Management System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f4f7fc;
+            color: #1a2332;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #121824 0%, #1e293b 50%, #334155 100%);
+            color: #fff;
+            padding: 80px 24px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
+                        radial-gradient(circle at 70% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 60%);
+        }
+
+        .header-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
+
+        .header .badge {
+            display: inline-block;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #38bdf8;
+            padding: 6px 18px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+        }
+
+        .header h1 span { color: #38bdf8; }
+
+        .header .subtitle {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 6px;
+            font-weight: 300;
+        }
+
+        .header .meta {
+            margin-top: 28px;
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .header .meta span {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header .meta span strong { color: #fff; font-weight: 500; }
+
+        .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+        .section {
+            background: #fff;
+            border-radius: 16px;
+            padding: 40px 44px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+            border: 1px solid #eaeef3;
+        }
+
+        .section h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a2332;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2 .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #38bdf8;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 20px 0 10px;
+        }
+
+        .section h3:first-of-type { margin-top: 0; }
+
+        .section p { color: #475569; margin-bottom: 14px; font-size: 15px; }
+
+        .section ul, .section ol { margin: 0 0 16px 20px; color: #475569; font-size: 15px; }
+
+        .section li { margin-bottom: 6px; }
+
+        .section code {
+            background: #f1f5f9;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .card p, .card li { font-size: 13px; margin-bottom: 4px; }
+        .card ul { margin-left: 14px; }
+        
+        .feature-image {
+            width: 100%;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: block;
+        }
+
+        .img-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        
+        .flow-diagram {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .flow-diagram .flow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .flow-diagram .flow-step {
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1e293b;
+            min-width: 100px;
+        }
+
+        .flow-diagram .flow-arrow {
+            color: #38bdf8;
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        .flow-diagram .flow-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+
+        table th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 10px 14px;
+            font-weight: 600;
+            color: #1e293b;
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #475569;
+        }
+
+        table tr:hover td { background: #f8fafc; }
+
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .tag-blue { background: #e0f2fe; color: #0284c7; }
+        .tag-green { background: #dcfce7; color: #166534; }
+        .tag-amber { background: #fef9c3; color: #854d0e; }
+        .tag-purple { background: #f3e8ff; color: #6b21a8; }
+        
+        @media (max-width: 700px) {
+            .header h1 { font-size: 32px; }
+            .header .meta { flex-direction: column; gap: 8px; align-items: center; }
+            .section { padding: 24px 20px; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .img-row { grid-template-columns: 1fr; }
+            .flow-diagram .flow-row { flex-direction: column; }
+            .flow-diagram .flow-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <div class="badge">Enterprise Healthcare &middot; AI &middot; Robotics</div>
+        <h1><span>APMS</span> Ecosystem</h1>
+        <p class="subtitle">Advanced Pharmacy Management System integrating AI, WebSockets, and Robotic Dispensing</p>
+        <div class="meta">
+            <span>Stack: <strong>Flutter, Node.js, Python, PostgreSQL, ESP32</strong></span>
+            <span>Focus: <strong>System Architecture &amp; Hardware Integration</strong></span>
+            <span>Status: <strong class="tag tag-green">Production Ready</strong></span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <img src="assets/apms_hero_mockup.png" alt="APMS Hero Mockup" class="feature-image">
+
+    <!-- 1. Executive Summary -->
+    <div class="section">
+        <h2><span class="num">1</span> Executive Summary</h2>
+        <p>
+            The <strong>Advanced Pharmacy Management System (APMS)</strong> is an intelligent ecosystem designed to bridge the gap between rigid traditional pharmacy software and modern healthcare needs. It manages inventory securely, predicts future stock demands through AI, and dispenses medication physically via robotics.
+        </p>
+        <p>
+            This case study details the technical implementation of the APMS ecosystem, comprising a staff dashboard, a secure Node.js gateway, an AI predictive engine, and the direct hardware integration controlling the robotic dispensing arm.
+        </p>
+    </div>
+
+    <!-- 2. Core Architecture -->
+    <div class="section">
+        <h2><span class="num">2</span> Core Architecture</h2>
+        <p>The system relies on a modular, decentralized microservices architecture:</p>
+
+        <div class="flow-diagram">
+            <div class="flow-row">
+                <div>
+                    <div class="flow-step">Roshetty App</div>
+                    <div class="flow-label">Patient (Mobile)</div>
+                </div>
+                <div class="flow-arrow">&#8596;</div>
+                <div>
+                    <div class="flow-step">APMS Gateway</div>
+                    <div class="flow-label">Node.js API & WebSockets</div>
+                </div>
+                <div class="flow-arrow">&#8596;</div>
+                <div>
+                    <div class="flow-step">PostgreSQL</div>
+                    <div class="flow-label">Core Database</div>
+                </div>
+            </div>
+            <div style="margin-top:24px">
+                <div class="flow-row">
+                    <div>
+                        <div class="flow-step">APMS Dashboard</div>
+                        <div class="flow-label">Staff UI (Desktop/Tablet)</div>
+                    </div>
+                    <div class="flow-arrow">&#8596;</div>
+                    <div>
+                        <div class="flow-step" style="border-color:#166534; background:#dcfce7; color:#166534;">AI Microservice</div>
+                        <div class="flow-label">Python (XGBoost, Q-Learning)</div>
+                    </div>
+                    <div class="flow-arrow">&#8596;</div>
+                    <div>
+                        <div class="flow-step" style="border-color:#854d0e; background:#fef9c3; color:#854d0e;">Robotic Arm</div>
+                        <div class="flow-label">ESP32 / Motors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>1. Node.js Gateway & Security</h4>
+                <ul>
+                    <li><strong>Runtime:</strong> Node.js with Express & TypeScript</li>
+                    <li><strong>Auth:</strong> JWT & bcrypt for Role-Based Access Control (Manager vs Staff)</li>
+                    <li><strong>Real-time:</strong> Native WebSocket server (ws) for instantaneous push updates</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>2. Database (PostgreSQL)</h4>
+                <ul>
+                    <li>ACID compliance guarantees that stock is never half-updated</li>
+                    <li>Financial immutability using "Price-Locking" (<code>pay_rate_at_sale</code>)</li>
+                    <li>Fuzzy Search (<code>similarity()</code>) for OCR data linking</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>3. Intelligence Engine (Python)</h4>
+                <ul>
+                    <li><strong>Demand Forecasting:</strong> XGBoost Regressor</li>
+                    <li><strong>Smart Reorder:</strong> Q-Learning/Reinforcement Learning</li>
+                    <li><strong>Integrity Audit:</strong> Neural Network Autoencoder</li>
+                    <li><strong>OCR:</strong> Two-pass fuzzy/visual error correction</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>4. Hardware (Robotic Arm)</h4>
+                <ul>
+                    <li><strong>Controller:</strong> ESP32 / Raspberry Pi</li>
+                    <li><strong>Communication:</strong> Persistent WebSocket & HTTP GET</li>
+                    <li><strong>Interrupts:</strong> Safety ISR for emergency abortion</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Key Technical Challenges Solved -->
+    <div class="section">
+        <h2><span class="num">3</span> Key Technical Challenges Solved</h2>
+        
+        <h3>Phantom Stock Prevention & ACID Transactions</h3>
+        <p>When stock arrives, invoices are often kept in a <code>PENDING</code> state. The critical logic ensures physical stock quantities in the <code>medicines_inventory</code> do not increase until the invoice status flips to <code>PAID</code>. This prevents "phantom" inventory that could jam the automated hardware if a digitally present medicine is physically missing.</p>
+        
+        <h3>Financial Baseline Truth (Price-Locking)</h3>
+        <p>When a prescription is checked out, the system copies the current prices from the inventory table and locks them into the sales row. If medicine prices inflate next month, historical profit margins for today remain mathematically accurate.</p>
+        
+        <h3>Blind Reconciliation via Autoencoders</h3>
+        <p>For shift auditing, the backend calculates expected cash but employs a <strong>Blind Reconciliation</strong>—staff input their actual till amount without knowing the expectation. An Autoencoder model then detects patterns of anomalies, alerting managers to potential human error or fraud.</p>
+    </div>
+
+    <!-- 4. Predictive AI & Analytics -->
+    <div class="section">
+        <h2><span class="num">4</span> Predictive AI & Operational Analytics</h2>
+        <p>The AI Microservice transforms the pharmacy from a static management tool into an intelligent healthcare hub.</p>
+
+        <img src="assets/ai_command_center.png" alt="AI Command Center Dashboard" class="feature-image">
+
+        <table class="table">
+            <thead>
+                <tr><th>Model</th><th>Technology</th><th>Business Impact</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="tag tag-blue">Demand Forecasting</span></td>
+                    <td>XGBoost Regressor</td>
+                    <td>Analyzes historical sales to handle non-linear seasonal patterns in medicine demands, allowing high-precision procurement.</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-green">Smart Reorder</span></td>
+                    <td>Q-Learning</td>
+                    <td>Balances the cost of overstocking against the risk of life-saving medicine running out based on sales volatility and standard deviations.</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-purple">Integrity Audit</span></td>
+                    <td>Autoencoder (Keras)</td>
+                    <td>Reconstructs shift data; if reconstruction error (MSE) is too high, flags shifts for anomalies standard accounting might miss.</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-amber">Expiry Clearance</span></td>
+                    <td>Heuristic Engine</td>
+                    <td>Calculates dynamic discount percentages (20%-50%) for expiring items to liquidate risky stock and recover capital.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 5. Hardware Integration Pipeline -->
+    <div class="section">
+        <h2><span class="num">5</span> Hardware Integration Pipeline</h2>
+        <p>The physical robotic arm is the operational core of APMS. We established a strict, low-latency communication contract using WebSockets.</p>
+
+        <div class="flow-diagram">
+            <div class="flow-row">
+                <div>
+                    <div class="flow-step">Dispatch Command</div>
+                    <div class="flow-label">WebSocket Broadcast</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div>
+                    <div class="flow-step">Coordinate Fetch</div>
+                    <div class="flow-label">HTTP GET (e.g., A-01-C)</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div>
+                    <div class="flow-step">Dispense</div>
+                    <div class="flow-label">Motor Execution</div>
+                </div>
+                <div class="flow-arrow">&#8594;</div>
+                <div>
+                    <div class="flow-step" style="border-color:#166534; color:#166534;">Report Success</div>
+                    <div class="flow-label">HTTP POST /complete</div>
+                </div>
+            </div>
+        </div>
+
+        <ol>
+            <li><strong>The Wake-Up Call (WebSocket):</strong> When a pharmacist taps "Dispatch", the Node.js server broadcasts a <code>DISPATCHED</code> JSON event to the hardware's WebSocket listener.</li>
+            <li><strong>Coordinate Fetch (HTTP GET):</strong> The robot queries the backend to fetch the physical coordinates (e.g., bin <code>A-01-C</code>). Firmware maps this to X/Y/Z stepper motor steps.</li>
+            <li><strong>Execution & Reporting:</strong> Once items drop into the dispensing tray, the hardware hits a <code>/complete</code> POST route, triggering inventory deduction and a <code>COMPLETED</code> broadcast to turn the pharmacist's iPad UI green.</li>
+            <li><strong>Safety Interrupts (ISR):</strong> If "Stop Arm" is pressed on the UI, an <code>ABORTED</code> status is broadcast, triggering the microcontroller's Interrupt Service Routine to instantly cut power to stepper drivers and return home.</li>
+        </ol>
+    </div>
+
+    <!-- 6. Human-Computer Interaction (HCI) -->
+    <div class="section">
+        <h2><span class="num">6</span> Human-Computer Interaction (HCI)</h2>
+        <p>Pharmacists work in high-stress, fast-paced environments. The APMS dashboard is designed using core HCI principles to reduce cognitive load.</p>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>Preattentive Processing</h4>
+                <p>Instead of showing raw expiration dates, the app uses <code>StockStatus</code> enums (Healthy, Warning, Critical) with color-coded badges, allowing pharmacists to scan a list of 500 items and identify risks in milliseconds.</p>
+            </div>
+            <div class="card">
+                <h4>Responsive Thumb-Reach Navigation</h4>
+                <p>On desktop, the UI features a fixed sidebar. On mobile/tablets (often carried by pharmacists between shelves), it shifts to a bottom NavigationBar for optimal one-handed operation.</p>
+            </div>
+        </div>
+
+        <div class="img-row">
+            <div>
+                <img src="assets/desktop_dashboard.png" alt="Desktop Dashboard" class="feature-image">
+                <p style="text-align: center; font-size: 13px; color: #64748b;">Desktop Dashboard</p>
+            </div>
+            <div>
+                <img src="assets/tablet_interface.png" alt="Tablet Interface" class="feature-image">
+                <p style="text-align: center; font-size: 13px; color: #64748b;">Tablet Interface</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

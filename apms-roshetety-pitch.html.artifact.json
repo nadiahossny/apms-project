@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "APMS & Roshetety Pitch Deck",
+  "entry": "apms-roshetety-pitch.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-05-23T21:58:06.151Z",
+  "updatedAt": "2026-05-23T21:58:06.613Z",
+  "metadata": {
+    "identifier": "apms-roshetety-pitch",
+    "artifactType": "text/html",
+    "inferred": false
+  }
+}
