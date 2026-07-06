@@ -14,7 +14,10 @@ import robotRouter from './routes/robot';
 import aiRouter from './routes/ai';
 import reportsRouter from './routes/reports';
 import publicRouter from './routes/public';
+<<<<<<< HEAD
 import { setupSwagger } from './swagger';
+=======
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
 const app = express();
 const port = process.env.PORT || 4000;
 app.use(cors());
@@ -22,9 +25,12 @@ app.use(express.json());
 
 app.use(publicRouter);
 
+<<<<<<< HEAD
 // Setup Swagger API Documentation
 setupSwagger(app);
 
+=======
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
 // Main API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/medicines', medicinesRouter);

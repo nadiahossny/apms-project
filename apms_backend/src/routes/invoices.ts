@@ -3,7 +3,10 @@ import { query, pool } from '../db';
 import { authenticateToken } from '../middleware/auth';
 import { z } from 'zod';
 import multer from 'multer';
+<<<<<<< HEAD
 import * as xlsx from 'xlsx';
+=======
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
 
 // Use require instead of import to fix the TS(2349) signature error
 const pdfParse = require('pdf-parse'); 
@@ -265,6 +268,17 @@ router.post('/', async (req, res) => {
             [item.quantity, item.unit_cost, finalMedicineId]
           );
         }
+<<<<<<< HEAD
+=======
+
+        // Update stock
+        await client.query(
+          `UPDATE medicines_inventory
+           SET quantity_on_hand = quantity_on_hand + $1, unit_cost = $2
+           WHERE medicine_id = $3`,
+          [item.quantity, item.unit_cost, finalMedicineId]
+        );
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
       }
     }
 
@@ -317,6 +331,7 @@ router.post('/generate-invoices', async (req, res) => {
     }
     res.json({ message: 'Invoices generated successfully using company_id!' });
 });
+<<<<<<< HEAD
 
 // ── EXCEL INVOICE IMPORT ──
 // Upload an Excel file with medicine rows → creates invoice + items + updates stock
@@ -519,4 +534,6 @@ router.post('/upload-image', upload.single('image'), async (req, res) => {
   }
 });
 
+=======
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
 export default router;

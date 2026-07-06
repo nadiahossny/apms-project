@@ -8,10 +8,16 @@ import io
 import base64
 from PIL import Image
 
+<<<<<<< HEAD
 from ocr_core import extract, extract_from_url, search_medicine, GLM_MODEL_NAME
 import ocr_core
 
 app = FastAPI(title="Medicine OCR API", version="15.0 - AI Team Updates")
+=======
+from ocr_core import extract, extract_from_url, smart_medicine_search, MEDICINES_DB, MEDICINES_LIST
+
+app = FastAPI(title="Medicine OCR API", version="14.0 - Bulletproof Flat Match")
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,6 +65,7 @@ async def chat(req: ChatRequest):
     
     try:
         result = extract_from_url(image_url)
+<<<<<<< HEAD
         content_text = "\n".join(result.get("medicine_names", [])) if result.get("medicine_names") else "No medicines detected."
         
         medications = result.get("medications", [])
@@ -75,6 +82,22 @@ async def chat(req: ChatRequest):
         return {
             "id": "ocr-med-001", "object": "chat.completion", "created": int(time.time()),
             "model": req.model or GLM_MODEL_NAME,
+=======
+        content_text = "\n".join(result["medicine_names"]) if result["medicine_names"] else "No medicines detected."
+        
+        corrections = [m for m in result.get("validated_medicines", []) if m.get("valid")]
+        if corrections:
+            content_text += "\n\nDB Matched:\n"
+            for c in corrections:
+                if c["original"] != c["corrected"]:
+                    method = c.get("method", "unknown")
+                    score = c.get("score", 0)
+                    content_text += f"- {c['original']} -> {c['corrected']} (Score: {score})\n"
+        
+        return {
+            "id": "ocr-med-001", "object": "chat.completion", "created": int(time.time()),
+            "model": req.model or "glm-ocr:latest",
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
             "choices": [{"index": 0, "message": {"role": "assistant", "content": content_text}, "finish_reason": "stop"}],
             "meta": result
         }
@@ -112,6 +135,7 @@ async def upload_base64(data: Base64Image):
 
 @app.post("/validate/medicine")
 async def validate_medicine(data: MedicineCheck):
+<<<<<<< HEAD
     res = search_medicine(data.name)
     meds = res.get("medications", [])
     if meds and meds[0].get("score", 0) >= 60:
@@ -122,10 +146,19 @@ async def validate_medicine(data: MedicineCheck):
 async def search_medicine_endpoint(query: str):
     query_lower = query.lower()
     matches = [m for m in ocr_core._cleaned_names if query_lower in m.lower()]
+=======
+    return smart_medicine_search(data.name)
+
+@app.get("/search/medicine")
+async def search_medicine(query: str):
+    query_lower = query.lower()
+    matches = [m for m in MEDICINES_LIST if query_lower in m.lower()]
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
     return {"query": query, "results": matches[:20], "count": len(matches)}
 
 @app.get("/")
 def home():
+<<<<<<< HEAD
     return {"status": "running", "model": GLM_MODEL_NAME, "docs": "/docs", "db_size": len(ocr_core._cleaned_names_set)}
 
 @app.get("/health")
@@ -241,3 +274,10 @@ async def invoice_upload(request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+=======
+    return {"status": "running", "model": "glm-ocr:latest", "docs": "/docs", "db_size": len(MEDICINES_DB)}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy", "model": "glm-ocr:latest", "medicines_db_size": len(MEDICINES_DB)}
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927

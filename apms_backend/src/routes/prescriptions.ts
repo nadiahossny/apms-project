@@ -314,12 +314,15 @@ router.post('/:id/checkout', async (req, res) => {
     `, [id]);
 
     await client.query('COMMIT');
+<<<<<<< HEAD
     
     broadcastEvent({
       type: 'ORDER_COMPLETE',
       payload: { prescription_id: id }
     });
     
+=======
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
     res.json({ message: 'Checkout successful, inventory updated.' });
     
   } catch (error: any) {
@@ -385,12 +388,15 @@ router.post('/:id/complete-handover', authenticateToken, async (req, res) => {
     `, [id]);
 
     await client.query('COMMIT');
+<<<<<<< HEAD
     
     broadcastEvent({
       type: 'ORDER_COMPLETE',
       payload: { prescription_id: id }
     });
     
+=======
+>>>>>>> c4340b6b1d5f883c781339aeb4c4f42c3e15a927
     res.json({ message: 'Transaction finalized and revenue recorded!' });
 
   } catch (error) {
