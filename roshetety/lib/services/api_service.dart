@@ -13,7 +13,7 @@ class NetworkException implements Exception {
 class RoshettyApi {
 
   // Note: For Android Emulator use 10.0.2.2. For Physical Device use your PC's IP. For Web/iOS use 127.0.0.1
-  static const String host = '192.168.1.10';
+  static const String host = '192.168.1.7';
   static const String port = '4000';
   static const _base = 'http://$host:$port/api'; // Using computer's Wi-Fi IP for Huawei device testing
   static const _timeout = Duration(seconds: 8);

@@ -14,12 +14,16 @@ import robotRouter from './routes/robot';
 import aiRouter from './routes/ai';
 import reportsRouter from './routes/reports';
 import publicRouter from './routes/public';
+import { setupSwagger } from './swagger';
 const app = express();
 const port = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
 app.use(publicRouter);
+
+// Setup Swagger API Documentation
+setupSwagger(app);
 
 // Main API Routes
 app.use('/api/auth', authRouter);
