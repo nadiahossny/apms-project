@@ -1,4 +1,4 @@
-# 💊 Roshetety: Smart Prescription Scanner & Pharmacy Management App
+# 💊 Roshetety & PharmaSys: Smart Prescription Scanner & Pharmacy Management App
 
 ## 🚀 Overview
 **Roshetety** is a cutting-edge mobile application designed to bridge the gap between patients and pharmacies. Built as an integral part of the **Advanced Pharmacy Management System (APMS)**, the app leverages Artificial Intelligence and real-time data sync to modernize how medical prescriptions are processed, reducing human error and saving valuable time.
