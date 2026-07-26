@@ -29,3 +29,4 @@ While this is a UI/UX case study, the design is deeply informed by its robust Fl
 
 ## 🔗 Links & Resources
 *   **UI/UX Case Study:** [View on Behance](https://www.behance.net/gallery/252768433/Smart-Prescription-Scanner-Pharmacy-Management-App)
+*   **Live Demo:** [Demo Link](https://1drv.ms/v/c/6d0bc93be96b1292/IQASpdKw0ezcS4EG6juWXKDYAfTjtEWBj0x2hDHb1rVQu-g?e=qen647)
